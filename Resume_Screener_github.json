@@ -1,0 +1,433 @@
+{
+  "name": "Resume Screener",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "Job_Description",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -384,
+        0
+      ],
+      "id": "42f0feb8-ef70-43bd-b192-317cc99373cc",
+      "name": "Extract Job Description"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = [];\n\nfor (const item of items) {\n  const binaries = item.binary || {};\n\n  for (const key of Object.keys(binaries)) {\n\n    if (key.startsWith(\"Resume\")) {\n\n      output.push({\n        json: item.json,\n        binary: {\n          resume: binaries[key]\n        }\n      });\n\n    }\n\n  }\n}\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -384,
+        176
+      ],
+      "id": "e556adf8-518c-4aa9-8bef-c2007bb0c772",
+      "name": "Code: Split Resumes"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an HR screening assistant.\n\nEvaluate how well the candidate matches the job description.\n\nJob Description:\n{{ $json.job_description_text }}\n\nCandidate Resume:\n{{ $json.resume_text }}\n\nReturn ONLY valid JSON.\n\nOutput format:\n{\n  \"candidate_name\": \"\",\n  \"matching_skills\": [],\n  \"missing_skills\": [],\n  \"match_percentage\": number\n}\n\nRules:\n- Extract candidate_name from the resume.\n- matching_skills must include skills clearly present in the resume that match the job description.\n- missing_skills must include required skills from the job description that are not present in the resume.\n- match_percentage must be a realistic estimation between 0 and 100.\n- matching_skills and missing_skills must be arrays of strings only.\n- Do NOT include explanations or comments.\n- Do NOT include text before or after the JSON.\n- The output must be valid JSON and parseable using JSON.parse().\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        528,
+        96
+      ],
+      "id": "9e3d957a-19cc-41e8-8dea-72f9587e39aa",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "llama3:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        400,
+        304
+      ],
+      "id": "74e0d60c-af54-4042-9412-e0cd4d686307",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "Upload Files",
+        "formDescription": "Please upload Job Description adn Resumes.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Job Description",
+              "fieldType": "file",
+              "acceptFileTypes": ".pdf",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Resume",
+              "fieldType": "file",
+              "acceptFileTypes": ".pdf",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        -592,
+        0
+      ],
+      "id": "11e2c098-9497-45d1-a648-f509c98587f3",
+      "name": "Upload Docs (pdf)",
+      "webhookId": "YOUR_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "686c4889-d44e-46d1-a193-810f1393a9b2",
+              "name": "job_description_text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -176,
+        0
+      ],
+      "id": "38173aab-2343-49ab-8e9b-3e1afab9c994",
+      "name": "Extract JD.text"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "resume",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -176,
+        176
+      ],
+      "id": "d3d3fe7e-54b0-4eac-a409-2d990fd7131a",
+      "name": "Extract Resumes"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "686c4889-d44e-46d1-a193-810f1393a9b2",
+              "name": "resume_text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        32,
+        176
+      ],
+      "id": "2b4c6e40-7f5a-41db-8aa1-3adfe73ff0b0",
+      "name": "Extract Resumes.text"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        288,
+        96
+      ],
+      "id": "d745fbc8-c248-4b5e-9a07-abe47c635492",
+      "name": "Combine JD + Resumes"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cleaned = [];\n\nfor (const item of items) {\n\n  let raw = item.json.output;\n\n  const start = raw.indexOf(\"{\");\n  const end = raw.lastIndexOf(\"}\");\n\n  if (start !== -1 && end !== -1) {\n\n    const jsonString = raw.substring(start, end + 1);\n\n    try {\n\n      let parsed = JSON.parse(jsonString);\n\n      // \u2b50 Recalcular recomendaci\u00f3n\n      if (parsed.match_percentage > 80) {\n        parsed.recommendation = \"Best Fit\";\n      } \n      else if (parsed.match_percentage >= 60) {\n        parsed.recommendation = \"Average Fit\";\n      } \n      else {\n        parsed.recommendation = \"Not Fit\";\n      }\n      parsed.matching_skills = parsed.matching_skills.join(\", \");\n      parsed.missing_skills = parsed.missing_skills.join(\", \");\n\n      cleaned.push({ json: parsed });\n\n    } catch (err) {\n\n      cleaned.push({\n        json: {\n          error: \"Invalid JSON\",\n          raw_output: raw\n        }\n      });\n\n    }\n  }\n}\n\nreturn cleaned;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        96
+      ],
+      "id": "9bcbf4e6-4a06-49e7-ab6e-4745af1e3aa6",
+      "name": "Clean and Parse"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3d442050-7472-4f13-8790-fb4c1564054f",
+              "name": "Candidate Name",
+              "value": "={{$json.candidate_name}}",
+              "type": "string"
+            },
+            {
+              "id": "b50a6e33-c8c5-4318-9fa4-2193fa6e89fe",
+              "name": "Matching Skills",
+              "value": "={{ $json.matching_skills }}",
+              "type": "string"
+            },
+            {
+              "id": "2bf001d2-89b4-4d04-8eb0-5e26f7442277",
+              "name": "Missing Skills",
+              "value": "={{ $json.missing_skills }}",
+              "type": "string"
+            },
+            {
+              "id": "d4936ed8-27ef-47d1-9129-e23362845a8e",
+              "name": "Match Porcentage",
+              "value": "={{ $json.match_percentage }}",
+              "type": "number"
+            },
+            {
+              "id": "b3023573-9f0a-4868-9e1b-37a7b3a21448",
+              "name": "Final Reccomendation",
+              "value": "={{ $json.recommendation }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1088,
+        96
+      ],
+      "id": "c3444f98-be49-4bc9-ab0c-980d91ad61b7",
+      "name": "Normalize Column Names"
+    },
+    {
+      "parameters": {
+        "options": {
+          "fileName": "=Resume_Screener_{{$now.format(\"yyyy-MM-dd\")}}.csv"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1280,
+        96
+      ],
+      "id": "18ea5790-5300-4e0c-aacb-987e2fadfab4",
+      "name": "Convert File to CSV"
+    },
+    {
+      "parameters": {
+        "sendTo": "your-email@gmail.com",
+        "subject": "=Resume Screening Results {{$now.format(\"yyyy-MM-dd\")}}\n",
+        "message": "=Hello,\n\nPlease find attached the resume screening results.\n\nRegards,\nResume Screener Bot",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1520,
+        96
+      ],
+      "id": "9d47cac4-aee4-4d5a-9236-6c4e6fa736c4",
+      "name": "Send Email + CSV as attachment",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Extract Job Description": {
+      "main": [
+        [
+          {
+            "node": "Extract JD.text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Split Resumes": {
+      "main": [
+        [
+          {
+            "node": "Extract Resumes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Clean and Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Docs (pdf)": {
+      "main": [
+        [
+          {
+            "node": "Extract Job Description",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code: Split Resumes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract JD.text": {
+      "main": [
+        [
+          {
+            "node": "Combine JD + Resumes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Resumes": {
+      "main": [
+        [
+          {
+            "node": "Extract Resumes.text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Resumes.text": {
+      "main": [
+        [
+          {
+            "node": "Combine JD + Resumes",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine JD + Resumes": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean and Parse": {
+      "main": [
+        [
+          {
+            "node": "Normalize Column Names",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Column Names": {
+      "main": [
+        [
+          {
+            "node": "Convert File to CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert File to CSV": {
+      "main": [
+        [
+          {
+            "node": "Send Email + CSV as attachment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "YOUR_VERSION_ID",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "YOUR_INSTANCE_ID"
+  },
+  "id": "YOUR_WORKFLOW_ID",
+  "tags": []
+}
